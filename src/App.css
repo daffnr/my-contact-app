@@ -1,4 +1,20 @@
-.App {
-  margin: 0 auto;
-  max-width: 400px;
+.fixed-top {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 100; 
+  padding-bottom: 20px;
+  background-color: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); 
+}
+
+.content {
+  margin: 120px;
+  padding: 10px;
+}
+
+.btn-parent {
+  display: flex;
+  gap: 20px;
 }

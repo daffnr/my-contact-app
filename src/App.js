@@ -1,22 +1,22 @@
 import "./App.css";
 import List from "./List";
 import { useState, useEffect } from "react";
-import { uid } from "uid";
 import axios from "axios";
 
-let api = axios.create({ baseURL: "http://localhost:3000" });
+
+let api = axios.create({ baseURL: "http://localhost:3001" });
 
 function App() {
   const [contacts, setContacts] = useState([]);
-
   const [isUpdate, setIsUpdate] = useState({ id: null, status: false });
-
   const [formData, setFormData] = useState({
     name: "",
     telp: "",
+    email: ""
   });
 
   useEffect(() => {
+   
     api.get("/contacts").then((res) => {
       setContacts(res.data);
     });
@@ -30,70 +30,81 @@ function App() {
 
   function handleSubmit(e) {
     e.preventDefault();
+    console.log('Form data:', formData); 
     let data = [...contacts];
-
-    if (formData.name === "") {
+  
+    if (formData.name === "" || formData.telp === "") {
       return false;
     }
-    if (formData.telp === "") {
-      return false;
-    }
-
+  
     if (isUpdate.status) {
-      data.forEach((contact) => {
-        if (contact.id === isUpdate.id) {
-          contact.name = formData.name;
-          contact.telp = formData.telp;
-        }
-      });
-      api
-        .put("/contacts/" + isUpdate.id, {
-          id: isUpdate.id,
-          name: formData.name,
-          telp: formData.telp,
-        })
-        .then(() => {
-          alert("Data berhasil di update");
-        });
-    } else {
-      let toSave = {
-        id: uid(),
+      
+      const updatedData = {
         name: formData.name,
         telp: formData.telp,
+        email: formData.email,
       };
+  
+      
+      api
+        .put(`/contacts/${isUpdate.id}`, updatedData)
+        .then(() => {
+         
+          setContacts(
+            contacts.map((contact) =>
+              contact.id === isUpdate.id ? { ...contact, ...updatedData } : contact
+            )
+          );
+          alert("Data berhasil diperbarui");
+        })
+        .catch((err) => {
+          console.error('Error during PUT request:', err);
+        });
+    } else {
+      
+      let toSave = {
+        name: formData.name,
+        telp: formData.telp,
+        email: formData.email,
+      };
+  
       data.push(toSave);
-
-      api.post("/contacts", toSave).then(() => {
-        alert("Data berhasil ditambah");
-      });
+  
+      api
+        .post("/contacts", toSave)
+        .then(() => {
+          alert("Data berhasil ditambah");
+        })
+        .catch((err) => {
+          console.error('Error during POST request:', err);
+        });
     }
+  
     setContacts(data);
-    setIsUpdate(false);
-    setFormData({ name: "", telp: "" });
+    setIsUpdate({ status: false, id: null }); 
+    setFormData({ name: "", telp: "", email: "" });
   }
 
   function handleEdit(id) {
-    let data = [...contacts];
-    let foundData = data.find((contact) => contact.id === id);
+    const foundData = contacts.find((contact) => contact.id === id);
     setIsUpdate({ status: true, id: id });
-    setFormData({ name: foundData.name, telp: foundData.telp });
+    setFormData({ name: foundData.name, telp: foundData.telp, email: foundData.email });
   }
 
   function handleDelete(id) {
-    let data = [...contacts];
-    let filteredData = data.filter((contact) => contact.id !== id);
-
-    api.delete("/contacts/" + id).then(() => alert("Data berhasil dihapus"));
-    setContacts(filteredData);
+    api.delete(`/contacts/${id}`).then(() => {
+      setContacts(contacts.filter((contact) => contact.id !== id));
+      alert("Data berhasil dihapus");
+    });
   }
 
   return (
-    <div className="App">
-      <div className="fixed-top bg-white pb-3 mx-auto" style={{ width: 400 }}>
+    <div>
+      <div className="bg-white pb-3 mx-auto mt-5" style={{ width: 400, border: "2px solid #000", borderRadius: "10px" }}>
         <h1 className="px-3 py-3 font-weight-bold">My Contact List</h1>
         <form onSubmit={handleSubmit} className="px-3 py-4">
           <div className="form-group">
-            <label htmlFor="">Name</label>
+            <label>Name</label>
             <input
               type="text"
               onChange={handleChange}
@@ -103,7 +114,7 @@ function App() {
             />
           </div>
           <div className="form-group mt-3">
-            <label htmlFor="">No. Telp</label>
+            <label>No. Telp</label>
             <input
               type="text"
               onChange={handleChange}
@@ -112,14 +123,25 @@ function App() {
               name="telp"
             />
           </div>
+          <div className="form-group mt-3">
+            <label>Email</label>
+            <input
+              type="email"
+              onChange={handleChange}
+              value={formData.email}
+              className="form-control"
+              name="email"
+            />
+          </div>
           <div>
             <button type="submit" className="btn btn-primary w-100 mt-3">
-              Save
+              {isUpdate.status ? "Update" : "Save"}
             </button>
           </div>
         </form>
       </div>
-      <div style={{ marginTop: 350 }}>
+   
+      <div className="content">
         <List
           handleEdit={handleEdit}
           handleDelete={handleDelete}
