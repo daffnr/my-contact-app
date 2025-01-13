@@ -8,7 +8,7 @@ const List = ({ data, handleEdit, handleDelete }) => {
           <tr>
             <th>Name</th>
             <th>No. Telp</th>
-            <th>Email</th> {/* Tambahkan kolom email */}
+            <th>Email</th> 
             <th>Action</th>
           </tr>
         </thead>
@@ -17,7 +17,7 @@ const List = ({ data, handleEdit, handleDelete }) => {
             <tr key={contact.id}>
               <td>{contact.name}</td>
               <td>{contact.telp}</td>
-              <td>{contact.email}</td> {/* Tampilkan email disini */}
+              <td>{contact.email}</td> 
               <td className="btn-parent">
                 <button
                     onClick={() => handleEdit(contact.id)}
