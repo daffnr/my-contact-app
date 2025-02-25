@@ -1,26 +1,36 @@
-import "./App.css";
-import List from "./List";
-import { useState, useEffect } from "react";
-import axios from "axios";
-
-let api = axios.create({
-  baseURL: "https://be-contact-app.vercel.app/api",
-});
+import React, { useState, useEffect } from "react";
+import List from "./components/List";
+import Form from "./components/Form";
+import initialContacts from "./data";
+import "../src/App.css";
 
 function App() {
   const [contacts, setContacts] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [isUpdate, setIsUpdate] = useState({ id: null, status: false });
   const [formData, setFormData] = useState({
     name: "",
     telp: "",
     email: "",
+    photo: "",
   });
+  const [showForm, setShowForm] = useState(false);
+  const [preview, setPreview] = useState(null);
 
   useEffect(() => {
-    api.get("/contacts").then((res) => {
-      setContacts(res.data);
-    });
+    const storedContacts = JSON.parse(localStorage.getItem("contacts"));
+    if (storedContacts) {
+      setContacts(storedContacts);
+    } else {
+      setContacts(initialContacts);
+    }
   }, []);
+
+  useEffect(() => {
+    if (contacts.length > 0) {
+      localStorage.setItem("contacts", JSON.stringify(contacts));
+    }
+  }, [contacts]);
 
   function handleChange(e) {
     let newFormState = { ...formData };
@@ -28,12 +38,22 @@ function App() {
     setFormData(newFormState);
   }
 
+  function handleFileChange(e) {
+    const file = e.target.files[0];
+    if (file) {
+      setFormData({ ...formData, photo: file });
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
   function handleSubmit(e) {
     e.preventDefault();
-    console.log("Form data:", formData);
-    let data = [...contacts];
-
-    if (formData.name === "" || formData.telp === "") {
+    if (formData.name === "" || formData.telp === "" || formData.email === "") {
+      alert("Please fill in all fields.");
       return false;
     }
 
@@ -42,49 +62,33 @@ function App() {
         name: formData.name,
         telp: formData.telp,
         email: formData.email,
+        photo: preview,
       };
 
-      api
-        .put(`/contacts/${isUpdate.id}`, updatedData)
-        .then(() => {
-          setContacts(
-            contacts.map((contact) =>
-              contact.id === isUpdate.id
-                ? { ...contact, ...updatedData }
-                : contact
-            )
-          );
-          alert("Data berhasil diperbarui");
-        })
-        .catch((err) => {
-          console.error("Error during PUT request:", err);
-        });
+      setContacts(
+        contacts.map((contact) =>
+          contact.id === isUpdate.id ? { ...contact, ...updatedData } : contact
+        )
+      );
+      alert("Data berhasil diperbarui");
     } else {
-      let toSave = {
+      const newId = contacts.length + 1;
+      const newContact = {
+        id: newId,
         name: formData.name,
         telp: formData.telp,
         email: formData.email,
+        photo: preview || "https://randomuser.me/api/portraits/men/8.jpg",
       };
 
-      data.push(toSave);
-
-      api
-        .post("/contacts", toSave)
-        .then(() => {
-          alert("Data berhasil ditambah");
-
-          api.get("/contacts").then((res) => {
-            setContacts(res.data);
-          });
-        })
-        .catch((err) => {
-          console.error("Error during POST request:", err);
-        });
+      setContacts([...contacts, newContact]);
+      alert("Data berhasil ditambah");
     }
 
-    setContacts(data);
+    setFormData({ name: "", telp: "", email: "", photo: "" });
+    setPreview(null);
     setIsUpdate({ status: false, id: null });
-    setFormData({ name: "", telp: "", email: "" });
+    setShowForm(false);
   }
 
   function handleEdit(id) {
@@ -94,69 +98,66 @@ function App() {
       name: foundData.name,
       telp: foundData.telp,
       email: foundData.email,
+      photo: foundData.photo,
     });
+    setPreview(foundData.photo);
+    setShowForm(true);
   }
 
   function handleDelete(id) {
-    api.delete(`/contacts/${id}`).then(() => {
-      setContacts(contacts.filter((contact) => contact.id !== id));
-      alert("Data berhasil dihapus");
-    });
+    const updatedContacts = contacts.filter((contact) => contact.id !== id);
+    setContacts(updatedContacts);
+    alert("Data berhasil dihapus");
   }
 
-  return (
-    <div>
-      <div
-        className="bg-white pb-3 mx-auto mt-5"
-        style={{ width: 400, border: "2px solid #000", borderRadius: "10px" }}
-      >
-        <h1 className="px-3 py-3 font-weight-bold">My Contact List</h1>
-        <form onSubmit={handleSubmit} className="px-3 py-4">
-          <div className="form-group">
-            <label>Name</label>
-            <input
-              type="text"
-              onChange={handleChange}
-              className="form-control"
-              value={formData.name}
-              name="name"
-            />
-          </div>
-          <div className="form-group mt-3">
-            <label>No. Telp</label>
-            <input
-              type="text"
-              onChange={handleChange}
-              value={formData.telp}
-              className="form-control"
-              name="telp"
-            />
-          </div>
-          <div className="form-group mt-3">
-            <label>Email</label>
-            <input
-              type="email"
-              onChange={handleChange}
-              value={formData.email}
-              className="form-control"
-              name="email"
-            />
-          </div>
-          <div>
-            <button type="submit" className="btn btn-primary w-100 mt-3">
-              {isUpdate.status ? "Update" : "Save"}
-            </button>
-          </div>
-        </form>
-      </div>
+  const filteredContacts = contacts.filter((contact) => {
+    return (
+      contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contact.email.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  });
 
-      <div className="content">
-        <List
-          handleEdit={handleEdit}
-          handleDelete={handleDelete}
-          data={contacts}
+  return (
+    <div className="container">
+      <h1>Contact App</h1>
+
+      <div className="action-container">
+        <button
+          className="btn-primary"
+          onClick={() => setShowForm(true)}
+        >
+          Add New Contact
+        </button>
+
+        <input
+          type="text"
+          placeholder="Search contacts..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
+
+      {showForm && (
+        <div className="form-popup show">
+          <div className="form-container">
+            <button className="close-btn" onClick={() => setShowForm(false)}>X</button>
+            <Form
+              formData={formData}
+              handleChange={handleChange}
+              handleFileChange={handleFileChange}
+              handleSubmit={handleSubmit}
+              preview={preview}
+              isUpdate={isUpdate}
+            />
+          </div>
+        </div>
+      )}
+
+      <List
+        data={filteredContacts}
+        handleEdit={handleEdit}
+        handleDelete={handleDelete}
+      />
     </div>
   );
 }
